@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>123 木頭人 - 人偶實況版</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0b0e14;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .rules-hint { font-size: 13px; color: #888; margin-bottom: 12px; }
+
+    .setup-panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      padding: 10px 14px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    input[type="text"] {
+      flex: 1;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: #ff3366; }
+    button {
+      background: #ff3366;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover:not(:disabled) { background: #e62054; }
+    button:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+    /* 遊戲舞台 */
+    .main-stage {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      height: 480px;
+      background: linear-gradient(180deg, #182030 0%, #293444 42%, #bfa47d 43%, #ccb087 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #30363d;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    /* 巨型人偶 */
+    .doll-wrapper {
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 5;
+    }
+    .doll-head {
+      width: 105px;
+      height: 110px;
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    .doll-head.back { background: #111; border: 3px solid #000; }
+    .doll-head.front { background: #ffe3c7; border: 3px solid #222; }
+    .doll-eye {
+      position: absolute;
+      top: 40px;
+      width: 20px;
+      height: 20px;
+      background: #000;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.9);
+    }
+    .doll-eye.left { left: 20px; }
+    .doll-eye.right { right: 20px; }
+    .doll-eye::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 8px;
+      height: 8px;
+      background: #ff0044;
+      border-radius: 50%;
+    }
+    .doll-blush {
+      position: absolute;
+      top: 65px;
+      width: 20px;
+      height: 12px;
+      background: #ff758f;
+      border-radius: 50%;
+      opacity: 0.6;
+    }
+    .doll-blush.left { left: 14px; }
+    .doll-blush.right { right: 14px; }
+    .doll-body {
+      width: 80px;
+      height: 95px;
+      background: #f77f00;
+      border-radius: 12px 12px 0 0;
+      position: relative;
+      margin-top: -6px;
+      border: 3px solid #111;
+    }
+
+    /* 紅白終點線 */
+    .finish-line {
+      position: absolute;
+      top: 240px;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: repeating-linear-gradient(90deg, #fff 0px, #fff 20px, #d90429 20px, #d90429 40px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    /* ================= 跑者造型與動作 ================= */
+    .runner {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .runner-head {
+      width: 26px;
+      height: 26px;
+      background: #ffe0bd;
+      border-radius: 50%;
+      border: 2px solid #111;
+      z-index: 3;
+    }
+    .runner-body-box {
+      position: relative;
+      width: 34px;
+      height: 42px;
+      background: #0077b6;
+      border-radius: 6px;
+      border: 2px solid #111;
+      margin-top: -2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      z-index: 2;
+    }
+    .runner-arm {
+      position: absolute;
+      top: 2px;
+      width: 7px;
+      height: 24px;
+      background: #023e8a;
+      border-radius: 4px;
+      border: 1px solid #111;
+      transform-origin: top center;
+    }
+    .arm-left { left: -7px; }
+    .arm-right { right: -7px; }
+    .runner-leg {
+      position: absolute;
+      bottom: -20px;
+      width: 9px;
+      height: 24px;
+      background: #03045e;
+      border-radius: 4px;
+      border: 1px solid #111;
+      transform-origin: top center;
+    }
+    .leg-left { left: 4px; }
+    .leg-right { right: 4px; }
+
+    /* 跑步中狂暴晃動效果 */
+    .runner.running {
+      animation: runShake 0.15s infinite alternate;
+    }
+    .runner.running .arm-left {
+      animation: armSwing 0.25s infinite alternate ease-in-out;
+    }
+    .runner.running .arm-right {
+      animation: armSwing 0.25s infinite alternate-reverse ease-in-out;
+    }
+    .runner.running .leg-left {
+      animation: legSwing 0.25s infinite alternate ease-in-out;
+    }
+    .runner.running .leg-right {
+      animation: legSwing 0.25s infinite alternate-reverse ease-in-out;
+    }
+
+    @keyframes runShake {
+      from { transform: translateX(-52%) translateY(0); }
+      to { transform: translateX(-48%) translateY(-6px); }
+    }
+    @keyframes armSwing {
+      from { transform: rotate(45deg); }
+      to { transform: rotate(-45deg); }
+    }
+    @keyframes legSwing {
+      from { transform: rotate(-50deg); }
+      to { transform: rotate(50deg); }
+    }
+
+    .action-bubble {
+      position: absolute;
+      top: -26px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #00f0ff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      border: 1px solid #00adb5;
+    }
+
+    /* 狀態看板 */
+    .state-banner {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 800;
+      z-index: 10;
+    }
+    .banner-green { background: rgba(20, 83, 45, 0.95); color: #86efac; border: 1px solid #22c55e; }
+    .banner-red { background: rgba(153, 27, 27, 0.95); color: #fca5a5; border: 1px solid #ef4444; }
+
+    /* 右下角玩家小鏡頭 */
+    .pip-camera {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: 160px;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 8px;
+      border: 2px solid #4a5568;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+      z-index: 20;
+    }
+    .pip-camera canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
+    .pip-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #00adb5;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-family: monospace;
+      z-index: 21;
+    }
+
+    /* 結算遮罩 */
+    .overlay-curtain {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 50;
+      cursor: pointer;
+    }
+    .curtain-title { font-size: 34px; font-weight: 900; }
+
+    /* 底部數據看板 */
+    .dashboard {
+      width: 100%;
+      max-width: 800px;
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      background: #161b22;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
+    .dashboard-item span { color: #00adb5; font-weight: 700; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+
+  <h1>123 木頭人 (人偶實況版)</h1>
+  <div class="rules-hint">
+    背對時 Class 2 跑步 ｜ 轉頭時 Class 1 靜止（亦可長按 <b>空白鍵 (Space)</b> 測試跑步）
+  </div>
+
+  <div class="setup-panel">
+    <input type="text" id="modelUrl" value="https://teachablemachine.withgoogle.com/models/KNz-OoSRG/" placeholder="Teachable Machine 模型網址" />
+    <button id="loadBtn" onclick="initPipeline()">啟動遊戲</button>
+  </div>
+
+  <div class="main-stage">
+    <div id="statusBanner" class="state-banner banner-green">點擊啟動開始</div>
+
+    <div class="doll-wrapper">
+      <div id="dollHead" class="doll-head back">
+        <div class="doll-eye left" id="eyeL" style="display: none;"></div>
+        <div class="doll-eye right" id="eyeR" style="display: none;"></div>
+        <div class="doll-blush left" id="blushL" style="display: none;"></div>
+        <div class="doll-blush right" id="blushR" style="display: none;"></div>
+      </div>
+      <div class="doll-body"></div>
+    </div>
+
+    <div class="finish-line"></div>
+
+    <!-- 跑者主體 -->
+    <div class="runner" id="runner">
+      <div class="action-bubble" id="actionBubble">立正靜止</div>
+      <div class="runner-head"></div>
+      <div class="runner-body-box">
+        <span>456</span>
+        <div class="runner-arm arm-left"></div>
+        <div class="runner-arm arm-right"></div>
+        <div class="runner-leg leg-left"></div>
+        <div class="runner-leg leg-right"></div>
+      </div>
+    </div>
+
+    <!-- 玩家視訊小畫面 -->
+    <div class="pip-camera">
+      <div class="pip-badge">PLAYER CAM</div>
+      <div id="webcam-container"></div>
+    </div>
+
+    <div id="gameCurtain" class="overlay-curtain" style="display: none;">
+      <div id="curtainTitle" class="curtain-title"></div>
+      <div style="font-size: 14px; color: #bbb;">點擊畫面任何位置重新挑戰</div>
+    </div>
+  </div>
+
+  <div class="dashboard">
+    <div class="dashboard-item">動作: <span id="teleClass">--</span></div>
+    <div class="dashboard-item">機率: <span id="teleConf">0%</span></div>
+    <div class="dashboard-item">進度: <span id="teleProg">0%</span></div>
+    <div class="dashboard-item">推論延遲: <span id="teleLatency">0 ms</span></div>
+  </div>
+
+  <script>
+    const GRACE_PERIOD_MS = 250;
+    const VIOLATION_THRESHOLD = 0.70;
+    const REQUIRED_FRAMES = 2;
+    const PLAYER_SPEED = 0.65; // 前進速度
+
+    let model, webcam;
+    let isPipelineActive = false;
+    let turnTimer = null;
+    let isSpacePressed = false; // 鍵盤測試開關
+
+    const STATE = {
+      IDLE: 'IDLE',
+      CHANTING: 'CHANTING',
+      WATCHING: 'WATCHING',
+      GAME_OVER: 'GAME_OVER',
+      VICTORY: 'VICTORY'
+    };
+
+    let currentState = STATE.IDLE;
+    let turnTimestamp = 0;
+    let progress = 0;
+    let violationStreak = 0;
+
+    let latestPerception = {
+      isMoving: false,
+      rawClass: '',
+      probability: 0,
+      timestamp: 0
+    };
+
+    // 鍵盤監聽（支援按住 Space 或 W 鍵直接強制跑動）
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.key === 'w' || e.key === 'W') isSpacePressed = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' || e.key === 'w' || e.key === 'W') isSpacePressed = false;
+    });
+
+    async function initPipeline() {
+      const urlInput = document.getElementById('modelUrl').value.trim();
+      if (!urlInput) return alert('請輸入有效模型連結');
+
+      const cleanUrl = urlInput.endsWith('/') ? urlInput : urlInput + '/';
+      const modelURL = cleanUrl + 'model.json';
+      const metadataURL = cleanUrl + 'metadata.json';
+
+      const loadBtn = document.getElementById('loadBtn');
+      loadBtn.disabled = true;
+      loadBtn.innerText = '載入模型中...';
+
+      try {
+        model = await tmImage.load(modelURL, metadataURL);
+
+        // 初始化 WebCam
+        webcam = new tmImage.Webcam(200, 150, true);
+        await webcam.setup();
+        await webcam.play();
+
+        const container = document.getElementById('webcam-container');
+        container.innerHTML = '';
+        container.appendChild(webcam.canvas);
+
+        isPipelineActive = true;
+        loadBtn.innerText = '遊戲進行中';
+
+        startGame();
+        mainLoop(); // 統一採用 mainLoop 驅動視訊刷新、推論與渲染
+
+      } catch (err) {
+        console.error(err);
+        alert('模型載入失敗，請確認鏡頭權限！');
+        loadBtn.disabled = false;
+        loadBtn.innerText = '啟動遊戲';
+      }
+    }
+
+    function startGame() {
+      if (turnTimer) clearTimeout(turnTimer);
+      currentState = STATE.CHANTING;
+      progress = 0;
+      violationStreak = 0;
+      updateRunner(false);
+      document.getElementById('gameCurtain').style.display = 'none';
+
+      setDollState(false);
+      scheduleTurn();
+    }
+
+    function setDollState(isFacingFront) {
+      const head = document.getElementById('dollHead');
+      const eyeL = document.getElementById('eyeL');
+      const eyeR = document.getElementById('eyeR');
+      const blushL = document.getElementById('blushL');
+      const blushR = document.getElementById('blushR');
+      const banner = document.getElementById('statusBanner');
+
+      if (isFacingFront) {
+        head.className = 'doll-head front';
+        eyeL.style.display = 'block';
+        eyeR.style.display = 'block';
+        blushL.style.display = 'block';
+        blushR.style.display = 'block';
+
+        banner.className = 'state-banner banner-red';
+        banner.innerText = '🚨 回頭！嚴禁移動！(維持 Class 1)';
+      } else {
+        head.className = 'doll-head back';
+        eyeL.style.display = 'none';
+        eyeR.style.display = 'none';
+        blushL.style.display = 'none';
+        blushR.style.display = 'none';
+
+        banner.className = 'state-banner banner-green';
+        banner.innerText = '🟢 1 2 3 木頭人... (Class 2 快跑！)';
+      }
+    }
+
+    function scheduleTurn() {
+      if (currentState === STATE.GAME_OVER || currentState === STATE.VICTORY) return;
+
+      if (currentState === STATE.CHANTING) {
+        const chantTime = 3000 + Math.random() * 2000;
+        turnTimer = setTimeout(() => {
+          if (currentState !== STATE.CHANTING) return;
+          currentState = STATE.WATCHING;
+          turnTimestamp = performance.now();
+          violationStreak = 0;
+          setDollState(true);
+          scheduleTurn();
+        }, chantTime);
+      } else if (currentState === STATE.WATCHING) {
+        const watchTime = 2000 + Math.random() * 1500;
+        turnTimer = setTimeout(() => {
+          if (currentState !== STATE.WATCHING) return;
+          currentState = STATE.CHANTING;
+          turnTimestamp = performance.now();
+          violationStreak = 0;
+          setDollState(false);
+          scheduleTurn();
+        }, watchTime);
+      }
+    }
+
+    let lastPredictTime = 0;
+
+    // 核心主迴圈：保證 webcam 每影格皆 update，並以節流方式推論
+    async function mainLoop() {
+      if (!isPipelineActive) return;
+
+      // 1. 強制更新攝像頭畫面
+      webcam.update();
+
+      const now = performance.now();
+
+      // 2. 推論 (每 40ms 執行一次，約 25fps 推論頻率)
+      if (now - lastPredictTime > 40) {
+        lastPredictTime = now;
+        try {
+          const preds = await model.predict(webcam.canvas);
+          const latency = performance.now() - now;
+
+          // 核心改進：直接抓索引值！
+          // preds[0] 是 Class 1 (暫停)
+          // preds[1] 是 Class 2 (隨時動)
+          let isClass2Active = false;
+          let activeLabel = preds[0].className;
+          let activeConf = preds[0].probability;
+
+          if (preds.length >= 2) {
+            // 如果第 2 個類別機率較高，或大於 0.45 即判定為動態
+            if (preds[1].probability > 0.45 || preds[1].probability > preds[0].probability) {
+              isClass2Active = true;
+              activeLabel = preds[1].className;
+              activeConf = preds[1].probability;
+            }
+          }
+
+          // 支援鍵盤覆蓋測試
+          if (isSpacePressed) {
+            isClass2Active = true;
+            activeLabel = '鍵盤手動移動';
+            activeConf = 1.0;
+          }
+
+          latestPerception = {
+            isMoving: isClass2Active,
+            rawClass: activeLabel,
+            probability: activeConf,
+            timestamp: now
+          };
+
+          document.getElementById('teleClass').innerText = activeLabel;
+          document.getElementById('teleConf').innerText = Math.round(activeConf * 100) + '%';
+          document.getElementById('teleLatency').innerText = Math.round(latency) + ' ms';
+
+        } catch (e) {
+          console.error("推論失敗:", e);
+        }
+      }
+
+      // 3. 遊戲邏輯與角色位移運算
+      if (currentState === STATE.CHANTING) {
+        if (latestPerception.isMoving) {
+          progress = Math.min(100, progress + PLAYER_SPEED);
+          updateRunner(true);
+
+          if (progress >= 100) {
+            endGame(true);
+            return;
+          }
+        } else {
+          updateRunner(false);
+        }
+      } else if (currentState === STATE.WATCHING) {
+        updateRunner(false);
+
+        if (latestPerception.timestamp > (turnTimestamp + GRACE_PERIOD_MS)) {
+          if (latestPerception.isMoving && latestPerception.probability >= VIOLATION_THRESHOLD) {
+            violationStreak++;
+            if (violationStreak >= REQUIRED_FRAMES) {
+              endGame(false);
+              return;
+            }
+          } else {
+            violationStreak = Math.max(0, violationStreak - 1);
+          }
+        }
+      }
+
+      requestAnimationFrame(mainLoop);
+    }
+
+    function updateRunner(isRunning) {
+      const runner = document.getElementById('runner');
+      const bubble = document.getElementById('actionBubble');
+      document.getElementById('teleProg').innerText = Math.floor(progress) + '%';
+
+      // 向上平移：從 bottom: 25px 到 220px
+      const currentBottom = 25 + (progress / 100) * 195;
+      runner.style.bottom = `${currentBottom}px`;
+
+      if (isRunning) {
+        runner.classList.add('running');
+        bubble.innerText = '🏃 前進中！';
+        bubble.style.color = '#00f0ff';
+        bubble.style.borderColor = '#00adb5';
+      } else {
+        runner.classList.remove('running');
+        bubble.innerText = '🧍 立正靜止';
+        bubble.style.color = '#aaa';
+        bubble.style.borderColor = '#444';
+      }
+    }
+
+    function endGame(isWon) {
+      if (turnTimer) clearTimeout(turnTimer);
+      updateRunner(false);
+
+      const curtain = document.getElementById('gameCurtain');
+      const title = document.getElementById('curtainTitle');
+      curtain.style.display = 'flex';
+
+      if (isWon) {
+        currentState = STATE.VICTORY;
+        title.innerHTML = '🏆 成功抵達終點！生存！';
+        title.style.color = '#34d399';
+      } else {
+        currentState = STATE.GAME_OVER;
+        title.innerHTML = '💀 淘汰！抓到你動了！';
+        title.style.color = '#f87171';
+      }
+
+      curtain.onclick = () => {
+        curtain.onclick = null;
+        startGame();
+        mainLoop();
+      };
+    }
+  </script>
+</body>
+</html>
